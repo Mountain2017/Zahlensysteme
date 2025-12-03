@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zahlenumrechnung — Übungen</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;line-height:1.45}
+    body{max-width:920px;margin:24px auto;padding:18px}
+    h1,h2{color:#0b3}
+    .section{border:1px solid #ddd;border-radius:10px;padding:14px;margin:12px 0;background:#fbfbfb}
+    .task{display:flex;gap:10px;align-items:center;margin:8px 0}
+    label{min-width:360px}
+    input[type=text]{padding:6px 8px;font-size:1rem;border-radius:6px;border:1px solid #ccc;min-width:180px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn-check{background:#0b63a6;color:white}
+    .btn-new{background:#0a9f5a;color:white}
+    .result{margin-top:8px;font-size:0.95rem}
+    .ok{background:#dff0d8;border-color:#d0e9c6}
+    .bad{background:#f8d7da;border-color:#f5c6cb}
+    .hint{font-size:0.9rem;color:#555;margin-left:8px}
+    .expected{font-size:0.9rem;color:#333;margin-left:8px}
+    .small{font-size:0.85rem;color:#666}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    footer{margin-top:18px;font-size:0.9rem;color:#444}
+    .sub{font-size:0.85rem;vertical-align:baseline}
+  </style>
+</head>
+<body>
+  <h1>Zahlenumrechnung — Übungen</h1>
+  <p>Diese Seite bietet zwei Abschnitte: <strong>Einfach</strong> und <strong>Schwer</strong>. Drücke "Prüfen" um die Antworten zu überprüfen; die Eingabefelder werden dann grün (richtig) oder rot (falsch) markiert. Bei schwierigen Aufgaben sind auch Aufgaben zu Basis 8 (Oktal) enthalten. Zur Notation wird ein Index (z. B. <code>1111<sub>2</sub></code>) verwendet.</p>
+
+  <div class="section" id="easy">
+    <h2>Einfach — Grundumwandlungen</h2>
+    <div id="easyTasks"></div>
+    <div class="controls">
+      <button class="btn btn-check" onclick="checkSection('easy')">Prüfen</button>
+      <button class="btn btn-new" onclick="newTasks('easy')">Neue Aufgaben</button>
+      <div class="small">Beispielnotation: <code>1011<sub>2</sub></code> ← das ist eine Binärzahl.</div>
+    </div>
+    <div class="result" id="easyResult"></div>
+  </div>
+
+  <div class="section" id="hard">
+    <h2>Schwer — gemischte Basen (inkl. Oktal)</h2>
+    <div id="hardTasks"></div>
+    <div class="controls">
+      <button class="btn btn-check" onclick="checkSection('hard')">Prüfen</button>
+      <button class="btn btn-new" onclick="newTasks('hard')">Neue Aufgaben</button>
+      <div class="small">Schwierige Aufgaben können mehrere Richtungen verlangen, z. B. Hex → Binär oder Dezimal → Oktal.</div>
+    </div>
+    <div class="result" id="hardResult"></div>
+  </div>
+
+  <footer>Wenn du die Anzahl der Aufgaben oder Schwierigkeitsstufe ändern willst, sag Bescheid — ich passe die Seite an.</footer>
+
+  <script>
+    // --- Hilfsfunktionen ---
+    function toSubscriptBase(base){ return '<sub>'+base+'</sub>'; }
+
+    // Konfiguration: Aufgaben pro Sektion
+    const CONFIG = {
+      easyCount: 6,
+      hardCount: 8
+    };
+
+    // Generators for tasks. Each task: {promptHtml, fromBase, toBase, canonicalValue (Number)}
+
+    function genEasyTasks(n){
+      // mix of directions: bin->dec, dec->hex, hex->bin, dec->bin
+      const tasks = [];
+      for(let i=0;i<n;i++){
+        const type = i % 4;
+        if(type===0){ // bin -> dec
+          const val = randInt(1, 200);
+          const bin = val.toString(2);
+          tasks.push({promptHtml:`<code>${bin}${toSubscriptBase(2)}</code> → Dezimal (Basis 10)`, fromBase:2, toBase:10, canonicalValue:val});
+        } else if(type===1){ // dec -> hex
+          const val = randInt(1, 1000);
+          tasks.push({promptHtml:`<code>${val}${toSubscriptBase(10)}</code> → Hexadezimal (Basis 16)`, fromBase:10, toBase:16, canonicalValue:val});
+        } else if(type===2){ // hex -> bin
+          const val = randInt(1, 500);
+          const hex = val.toString(16).toUpperCase();
+          tasks.push({promptHtml:`<code>${hex}${toSubscriptBase(16)}</code> → Binär (Basis 2)`, fromBase:16, toBase:2, canonicalValue:val});
+        } else { // dec -> bin
+          const val = randInt(1, 255);
+          tasks.push({promptHtml:`<code>${val}${toSubscriptBase(10)}</code> → Binär (Basis 2)`, fromBase:10, toBase:2, canonicalValue:val});
+        }
+      }
+      return tasks;
+    }
+
+    function genHardTasks(n){
+      // include octal (8), larger hex and random bases among 2,8,10,16
+      const bases = [2,8,10,16];
+      const tasks = [];
+      for(let i=0;i<n;i++){
+        const from = bases[randInt(0,bases.length-1)];
+        let to = bases[randInt(0,bases.length-1)];
+        while(to===from) to = bases[randInt(0,bases.length-1)];
+        const val = randInt(1, 2000);
+        const repr = val.toString(from === 10 ? 10 : from).toUpperCase();
+        // ensure representation uses proper digits for non-decimal
+        const display = from===10 ? `${val}` : `${repr}`;
+        tasks.push({promptHtml:`<code>${display}${toSubscriptBase(from)}</code> → Basis ${to}`, fromBase:from, toBase:to, canonicalValue:val});
+      }
+      // add a few tougher ones: convert big hex to octal, etc.
+      if(n>=2){
+        const v1 = randInt(256, 4096);
+        tasks[0] = {promptHtml:`<code>${v1.toString(16).toUpperCase()}${toSubscriptBase(16)}</code> → Oktal (Basis 8)`, fromBase:16, toBase:8, canonicalValue:v1};
+      }
+      return tasks;
+    }
+
+    function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+
+    // Render tasks into container
+    function renderSection(id, tasks){
+      const container = document.getElementById(id+'Tasks');
+      container.innerHTML='';
+      tasks.forEach((t, idx)=>{
+        const div = document.createElement('div'); div.className='task';
+        const label = document.createElement('label');
+        label.innerHTML = `${idx+1}. ${t.promptHtml}`;
+        const input = document.createElement('input');
+        input.type='text'; input.id = `${id}_input_${idx}`; input.setAttribute('data-from', t.fromBase); input.setAttribute('data-to', t.toBase); input.setAttribute('data-value', t.canonicalValue);
+        input.placeholder = 'Antwort hier eingeben';
+        const hint = document.createElement('div'); hint.className='hint'; hint.id = `${id}_hint_${idx}`;
+        div.appendChild(label); div.appendChild(input); div.appendChild(hint);
+        container.appendChild(div);
+      });
+    }
+
+    // Checking logic
+    function checkSection(id){
+      const container = document.getElementById(id+'Tasks');
+      const inputs = container.querySelectorAll('input[type=text]');
+      let allCorrect = true;
+      inputs.forEach(inp=>{
+        const from = Number(inp.getAttribute('data-from'));
+        const to = Number(inp.getAttribute('data-to'));
+        const valueNumber = Number(inp.getAttribute('data-value'));
+        const userRaw = inp.value.trim();
+        const hintEl = document.getElementById(id+'_hint_'+inp.id.split('_').pop());
+        hintEl.textContent='';
+        // empty -> neutral style
+        if(userRaw===''){
+          inp.classList.remove('ok','bad');
+          hintEl.textContent='Bitte eine Antwort eingeben.';
+          allCorrect = false;
+          return;
+        }
+        // validate user input for target base
+        const valid = validateDigitsForBase(userRaw, to);
+        if(!valid){
+          inp.classList.remove('ok'); inp.classList.add('bad');
+          hintEl.textContent = `Ungültige Ziffern für Basis ${to}.`; allCorrect=false; return;
+        }
+        // compute expected string in target base
+        const expectedStr = canonicalToBase(valueNumber, to);
+        // user's normalized
+        const userNorm = normalizeUser(userRaw, to);
+        // compare numeric equivalence: parse user according to target base and compare to canonical value
+        const userNum = parseInt(userNorm, to);
+        if(isNaN(userNum)){
+          inp.classList.remove('ok'); inp.classList.add('bad');
+          hintEl.textContent = 'Konnte Eingabe nicht interpretieren.'; allCorrect=false; return;
+        }
+        if(userNum === valueNumber){
+          inp.classList.remove('bad'); inp.classList.add('ok');
+          hintEl.innerHTML = `✔ Richtig — entspricht ${expectedStr}${toSubscriptBase(to)}.`;
+        } else {
+          inp.classList.remove('ok'); inp.classList.add('bad');
+          hintEl.innerHTML = `✖ Falsch — richtige Lösung: <span class="expected">${expectedStr}${toSubscriptBase(to)}</span>`;
+          allCorrect=false;
+        }
+      });
+      const resultEl = document.getElementById(id+'Result');
+      resultEl.textContent = allCorrect ? 'Alle Antworten sind richtig — gut gemacht!' : 'Nicht alle Antworten sind richtig. Schau dir die markierten Felder an und verbessere dich.';
+    }
+
+    function canonicalToBase(num, base){
+      if(base===10) return String(num);
+      if(base===16) return num.toString(16).toUpperCase();
+      return num.toString(base);
+    }
+
+    function normalizeUser(s, base){
+      // remove spaces, allow optional leading 0x / 0X for hex, or trailing base index like _16 or <sub>16</sub>
+      let t = s.replace(/\s+/g,'');
+      // handle 0x prefix
+      if(/^0x/i.test(t) && base===16) t = t.replace(/^0x/i,'');
+      // handle possible trailing base written as e.g. number₂ or _2 (rare). Remove non-alphanum except A-F
+      t = t.replace(/[^0-9A-Fa-f]/g,'');
+      if(base===16) return t.toUpperCase();
+      return t;
+    }
+
+    function validateDigitsForBase(s, base){
+      const t = s.replace(/\s+/g,'');
+      if(base===10) return /^\d+$/.test(t);
+      if(base===2) return /^[01]+$/.test(t);
+      if(base===8) return /^[0-7]+$/.test(t);
+      if(base===16) return /^[0-9A-Fa-f]+$/.test(t);
+      return false;
+    }
+
+    // New tasks generator
+    let current = {easy: [], hard: []};
+    function newTasks(sec){
+      if(sec==='easy'){
+        current.easy = genEasyTasks(CONFIG.easyCount);
+        renderSection('easy', current.easy);
+        document.getElementById('easyResult').textContent='';
+      } else {
+        current.hard = genHardTasks(CONFIG.hardCount);
+        renderSection('hard', current.hard);
+        document.getElementById('hardResult').textContent='';
+      }
+    }
+
+    // initial load
+    window.addEventListener('load', ()=>{
+      newTasks('easy'); newTasks('hard');
+    });
+
+    // Optional: press Enter in input checks just that section
+    document.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        const el = document.activeElement;
+        if(el && el.tagName==='INPUT'){
+          const id = el.id.split('_')[0];
+          if(id==='easy' || id==='hard') checkSection(id);
+        }
+      }
+    });
+
+  </script>
+</body>
+</html>
