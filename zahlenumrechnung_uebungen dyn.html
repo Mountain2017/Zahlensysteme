@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zahlenumrechnung — Übungen</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;line-height:1.45}
+    body{max-width:920px;margin:24px auto;padding:18px}
+    h1,h2{color:#0b3}
+    .section{border:1px solid #ddd;border-radius:10px;padding:14px;margin:12px 0;background:#fbfbfb}
+    .task{display:flex;gap:10px;align-items:center;margin:8px 0}
+    label{min-width:360px}
+    input[type=text]{padding:6px 8px;font-size:1rem;border-radius:6px;border:1px solid #ccc;min-width:180px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn-check{background:#0b63a6;color:white}
+    .btn-new{background:#0a9f5a;color:white}
+    .result{margin-top:8px;font-size:0.95rem}
+    .ok{background:#dff0d8;border-color:#d0e9c6}
+    .bad{background:#f8d7da;border-color:#f5c6cb}
+    .hint{font-size:0.9rem;color:#555;margin-left:8px}
+    .expected{font-size:0.9rem;color:#333;margin-left:8px}
+    .small{font-size:0.85rem;color:#666}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    footer{margin-top:18px;font-size:0.9rem;color:#444}
+    .sub{font-size:0.85rem;vertical-align:baseline}
+  </style>
+</head>
+<body>
+  <h1>Dynamische Aufgaben zur Zahlenumrechnung</h1>
+  <p>Diese Seite bietet zur Umrechnung zwischen <strong>beliebigen</strong> Zahlensystemen. Drücke "Prüfen" um die Antworten zu überprüfen; die Eingabefelder werden dann grün (richtig) oder rot (falsch) markiert. Zur Notation wird ein Index (z. B. <code>1111<sub>2</sub></code>) verwendet.</p>
+
+  <label>Anzahl Aufgaben:</label>
+  <input type="number" id="anzahl" min="1" max="30" value="6">
+  <br><br>
+
+  <label>Wähle Zahlensysteme (Basis 2–16):</label><br>
+  <div id="bases"></div>
+
+
+  <div class="section" id="hard">
+    <h2>Schwer — gemischte Basen</h2>
+    <div id="hardTasks"></div>
+    <div class="controls">
+      <button class="btn btn-check" onclick="checkSection('hard')">Prüfen</button>
+      <button class="btn btn-new" onclick="newTasks('hard')">Neue Aufgaben</button>
+    </div>
+    <div class="small">Beispielnotation: <code>1011<sub>2</sub></code> ← das ist eine Binärzahl.</div>
+    <div class="small">Schwierige Aufgaben können mehrere Richtungen verlangen, z. B. Hex → Binär oder Dezimal → Oktal.</div>
+    <div class="result" id="hardResult"></div>
+  </div>
+
+  <script>
+    // --- Hilfsfunktionen ---
+
+    const baseContainer = document.getElementById('bases');
+    for (let b = 2; b <= 16; b++) {
+      baseContainer.innerHTML += `<label><input type='checkbox' value='${b}' checked> ${b}</label> `;
+    }
+
+    function toSubscriptBase(base){ return '<sub>'+base+'</sub>'; }
+
+    const hardCount = parseInt(document.getElementById("anzahl").value, 10);
+
+    // Generators for tasks. Each task: {promptHtml, fromBase, toBase, canonicalValue (Number)}
+
+    function genHardTasks(n){
+    // bases wird jetzt NICHT hart definiert, sondern dynamisch ausgelesen
+    const bases = getSelectedBases();
+
+    // Falls weniger als 2 Basen gewählt sind → keine sinnvolle Umwandlung möglich
+    if (bases.length < 2) {
+      alert("Bitte mindestens zwei Zahlensysteme auswählen.");
+      return [];
+    }
+
+    const tasks = [];
+
+    for (let i = 0; i < n; i++) {
+      const from = bases[randInt(0, bases.length - 1)];
+      let to = bases[randInt(0, bases.length - 1)];
+
+      // gleiche Basis vermeiden
+      while (to === from) {
+        to = bases[randInt(0, bases.length - 1)];
+      }
+
+      const val = randInt(1, 2000);
+      const repr = val.toString(from).toUpperCase();
+      const display = repr;
+
+      tasks.push({
+        promptHtml: `<code>${display}${toSubscriptBase(from)}</code> → Basis ${to}`,
+        fromBase: from,
+        toBase: to,
+        canonicalValue: val
+      });
+    }
+
+    return tasks;
+    }
+
+
+    function getSelectedBases() {
+      const checkboxes = document.querySelectorAll('#bases input[type=checkbox]:checked');
+      const arr = [];
+      checkboxes.forEach(cb => arr.push(parseInt(cb.value)));
+      return arr;
+    }
+
+    function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+
+    // Render tasks into container
+    function renderSection(id, tasks){
+      const container = document.getElementById(id+'Tasks');
+      container.innerHTML='';
+      tasks.forEach((t, idx)=>{
+        const div = document.createElement('div'); div.className='task';
+        const label = document.createElement('label');
+        label.innerHTML = `${idx+1}. ${t.promptHtml}`;
+        const input = document.createElement('input');
+        input.type='text'; input.id = `${id}_input_${idx}`; input.setAttribute('data-from', t.fromBase); input.setAttribute('data-to', t.toBase); input.setAttribute('data-value', t.canonicalValue);
+        input.placeholder = 'Antwort hier eingeben';
+        const hint = document.createElement('div'); hint.className='hint'; hint.id = `${id}_hint_${idx}`;
+        div.appendChild(label); div.appendChild(input); div.appendChild(hint);
+        container.appendChild(div);
+      });
+    }
+
+    // Checking logic
+    function checkSection(id){
+      const container = document.getElementById(id+'Tasks');
+      const inputs = container.querySelectorAll('input[type=text]');
+      let allCorrect = true;
+
+      inputs.forEach(inp=>{
+        const from = Number(inp.getAttribute('data-from'));
+        const to   = Number(inp.getAttribute('data-to'));
+        const valueNumber = Number(inp.getAttribute('data-value'));
+        const userRaw = inp.value.trim();
+
+        const idx = inp.id.split('_').pop();
+        const hintEl = document.getElementById(id+'_hint_'+idx);
+        hintEl.textContent='';
+
+        // keine Eingabe
+        if(userRaw === ''){
+          inp.classList.remove('ok','bad');
+          hintEl.textContent = 'Bitte eine Antwort eingeben.';
+          allCorrect = false;
+          return;
+        }
+
+        // Basenziffern prüfen
+        const valid = validateDigitsForBase(userRaw, to);
+        if(!valid){
+          inp.classList.remove('ok'); 
+          inp.classList.add('bad');
+          hintEl.textContent = `Ungültige Ziffern für ${baseName(to)}.`;
+          allCorrect = false;
+          return;
+        }
+
+        // Erwartete Darstellung
+        const expectedStr = canonicalToBase(valueNumber, to);
+        const userNorm    = normalizeUser(userRaw, to);
+
+        // Nutzerzahl interpretieren
+        const userNum = parseInt(userNorm, to);
+        if(isNaN(userNum)){
+          inp.classList.remove('ok'); 
+          inp.classList.add('bad');
+          hintEl.textContent = 'Konnte Eingabe nicht interpretieren.';
+          allCorrect = false;
+          return;
+        }
+
+        // Vergleich
+        if(userNum === valueNumber){
+          inp.classList.remove('bad'); 
+          inp.classList.add('ok');
+          hintEl.innerHTML = `✔ Richtig — entspricht ${expectedStr}${toSubscriptBase(to)}.`;
+        } else {
+          inp.classList.remove('ok'); 
+          inp.classList.add('bad');
+
+          hintEl.innerHTML =
+            `✖ Falsch — richtige Lösung: ` +
+            `<span class="expected">${expectedStr}${toSubscriptBase(to)}</span>`;
+          allCorrect = false;
+        }
+      });
+
+      const resultEl = document.getElementById(id+'Result');
+      resultEl.textContent = allCorrect
+        ? 'Alle Antworten sind richtig — gut gemacht!'
+        : 'Nicht alle Antworten sind richtig. Schau dir die markierten Felder an und verbessere dich.';
+    }
+                
+
+    function baseName(b){
+      switch(b){
+        case 2: return "Binär (Basis 2)";
+        case 8: return "Oktal (Basis 8)";
+        case 10: return "Dezimal (Basis 10)";
+        case 16: return "Hexadezimal (Basis 16)";
+        default: return `Basis ${b}`;
+      }
+    }
+
+
+    function canonicalToBase(num, base){
+      return num.toString(base).toUpperCase();
+    }
+
+
+    function normalizeUser(s, base){
+      let t = s.replace(/\s+/g, '').toUpperCase();
+
+      // 0x / 0X nur bei Hex
+      if(base === 16 && /^0X/.test(t)) {
+        t = t.slice(2);
+      }
+
+      // Alle Nicht-Zahlen/Buchstaben entfernen
+      t = t.replace(/[^0-9A-Z]/g, '');
+
+      // Nur Zeichen behalten, die für die Base gültig sind
+      const digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, base);
+      const re = new RegExp(`[^${digits}]`, 'g');
+      t = t.replace(re, '');
+
+      return t;
+    }
+
+
+    function validateDigitsForBase(s, base){
+      const t = s.replace(/\s+/g, '').toUpperCase();
+      const digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+      // Base must be between 2 and 36, else invalid
+      if(base < 2 || base > 36) return false;
+
+      const allowed = digits.slice(0, base);
+      const re = new RegExp(`^[${allowed}]+$`);
+      return re.test(t);
+    }
+
+
+    // New tasks generator
+    let current = {easy: [], hard: []};
+    function newTasks(sec){
+      current.hard = genHardTasks(hardCount);
+      renderSection('hard', current.hard);
+      document.getElementById('hardResult').textContent='';  
+    }
+
+    // initial load
+    window.addEventListener('load', ()=>{
+      newTasks('easy'); newTasks('hard');
+    });
+
+    // Optional: press Enter in input checks just that section
+    document.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        const el = document.activeElement;
+        if(el && el.tagName==='INPUT'){
+          const id = el.id.split('_')[0];
+          if(id==='easy' || id==='hard') checkSection(id);
+        }
+      }
+    });
+
+  </script>
+</body>
+</html>
+
