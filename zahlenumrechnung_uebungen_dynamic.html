@@ -60,8 +60,6 @@
 
     function toSubscriptBase(base){ return '<sub>'+base+'</sub>'; }
 
-    const hardCount = parseInt(document.getElementById("anzahl").value, 10);
-
     // Generators for tasks. Each task: {promptHtml, fromBase, toBase, canonicalValue (Number)}
 
     function genHardTasks(n){
@@ -250,6 +248,7 @@
     // New tasks generator
     let current = {easy: [], hard: []};
     function newTasks(sec){
+      const hardCount = parseInt(document.getElementById("anzahl").value, 10);
       current.hard = genHardTasks(hardCount);
       renderSection('hard', current.hard);
       document.getElementById('hardResult').textContent='';  
